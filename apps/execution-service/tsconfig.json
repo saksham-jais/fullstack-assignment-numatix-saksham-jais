@@ -1,0 +1,24 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "commonjs",
+    "rootDir": "../../",  // Key fix: Points to monorepo root (D:\Mega\Freelancing\fullstack-assignment-numatix-saksham-jais)
+    "outDir": "./dist",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "declaration": true,
+    "sourceMap": true,
+    "baseUrl": "./",  // App base for relative paths
+    "paths": {
+      "@shared/types": ["../../packages/shared/index.ts"]  // Relative from app to shared
+    }
+  },
+  "include": ["src/**/*"],  // Compiles only src/, but rootDir allows external imports
+  "exclude": ["node_modules", "dist"],
+  "ts-node": {
+    "esm": false
+  }
+}

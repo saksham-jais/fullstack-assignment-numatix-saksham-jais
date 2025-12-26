@@ -1,0 +1,28 @@
+{
+  "name": "numatix-trading-platform",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:all": "concurrently --kill-others-on-fail \"npm:dev:backend\" \"npm:dev:execution\" \"npm:dev:event\" \"npm:dev:frontend\"",
+    "dev:backend": "cd apps/backend && npm run dev",
+    "dev:execution": "cd apps/execution-service && npm run dev",
+    "dev:event": "cd apps/event-service && npm run dev",
+    "dev:frontend": "cd apps/frontend && npm run dev"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1",
+    "prisma": "^5.22.0",
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "@headlessui/react": "^2.2.9",
+    "@heroicons/react": "^2.2.0",
+    "@prisma/client": "^5.22.0",
+    "axios": "^1.13.2",
+    "lightweight-charts": "^5.1.0",
+    "zustand": "^5.0.9"
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "name": "event-service",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "node -r tsconfig-paths/register -r ts-node/register src/index.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/ws": "^8.18.1",
+    "ts-node": "^10.9.2",
+    "tsconfig-paths": "^4.2.0",
+    "typescript": "^5.9.3"
+  }
+}

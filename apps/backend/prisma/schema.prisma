@@ -1,0 +1,54 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                String       @id @default(cuid())
+  email             String       @unique
+  password          String
+  binanceApiKey     String
+  binanceSecretKey  String
+  createdAt         DateTime     @default(now())
+  commands          OrderCommand[]
+  events            OrderEvent[]
+}
+
+model OrderCommand {
+  id        String   @id @default(cuid())
+  userId    String
+  orderId   String   @unique
+  symbol    String
+  side      String
+  type      String
+  quantity  Float
+  status    String   @default("PENDING")
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([orderId])
+}
+
+model OrderEvent {
+  id        String   @id @default(cuid())
+  orderId   String
+  userId    String
+  status    String
+  symbol    String
+  side      String
+  quantity  Float
+  price     Float?
+  timestamp String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([orderId])
+}
