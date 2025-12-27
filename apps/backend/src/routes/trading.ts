@@ -2,16 +2,20 @@ import express from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import Redis from 'ioredis';
 import Binance from 'binance-api-node';
-import { OrderCommand } from '@shared/types';
+import type { OrderCommand, OrderEvent, Position } from '@shared/types';
 import { authenticate } from '../middleware/auth';
 import { prisma } from '../auth';
 
 const router = express.Router();
 const redis = new Redis(process.env.REDIS_URL!);
 
+interface BinancePublicClient {
+  prices(): Promise<{ symbol: string; price: string; }[]>;
+}
+
 const publicClient = Binance({
   httpBase: 'https://testnet.binance.vision',
-});
+}) as unknown as BinancePublicClient;
 
 router.post('/orders', authenticate, async (req: any, res: any) => {
   const { symbol, side, type, quantity, price } = req.body;
@@ -26,15 +30,15 @@ router.post('/orders', authenticate, async (req: any, res: any) => {
 
   const orderId = uuidv4();
 
-  const command: any = {  // Use 'any' temporarily; update OrderCommand type to include optional price
+  const command: OrderCommand & { price?: number } = {  // Extend with optional price
     orderId,
     userId: req.userId,
     symbol: symbol.toUpperCase(),
-    side,
-    type,
-    quantity,
-    ...(price && { price }),  // Conditionally add price
+    side: side as 'BUY' | 'SELL',
+    type: type as 'MARKET' | 'LIMIT',
+    quantity: parseFloat(quantity.toString()),
     timestamp: new Date().toISOString(),
+    ...(price && { price: parseFloat(price.toString()) }),
   };
 
   try {
@@ -73,49 +77,64 @@ router.get('/orders', authenticate, async (req: any, res: any) => {
 
 router.get('/positions', authenticate, async (req: any, res: any) => {
   try {
-    const events = await prisma.orderEvent.findMany({
+    const rawEvents = await prisma.orderEvent.findMany({
       where: { userId: req.userId, status: 'FILLED' },
       orderBy: { createdAt: 'asc' },
     });
 
-    const symbols = [...new Set(events.map(e => e.symbol))];
+    const events: OrderEvent[] = rawEvents.map((e: any): OrderEvent => ({
+      orderId: e.orderId,
+      userId: e.userId,
+      status: e.status as 'PENDING' | 'FILLED' | 'REJECTED' | 'PARTIALLY_FILLED',
+      symbol: e.symbol,
+      side: e.side as 'BUY' | 'SELL',
+      quantity: e.quantity,
+      price: e.price,
+      timestamp: e.timestamp,
+    }));
+
+    const symbols = [...new Set(events.map((e) => e.symbol))];
 
     let priceMap: Record<string, number> = {};
 
     if (symbols.length > 0) {
-      const pricePromises = symbols.map(async (sym) => {
-        try {
-          // Fixed: Use 'prices' for all symbols, then extract
-          const tickerResponse = await publicClient.prices();
-          // Type assertion for TS (prices() returns Record<string, string>)
-          const ticker = tickerResponse as unknown as Record<string, string>;
-          const symPrice = ticker[sym];
-          return { symbol: sym, price: parseFloat(symPrice || '0') };
-        } catch (err) {
-          console.warn(`Failed to fetch price for ${sym}:`, err);
-          return { symbol: sym, price: 0 };
-        }
-      });
-
-      const tickerData = await Promise.all(pricePromises);
-      priceMap = Object.fromEntries(tickerData.map(t => [t.symbol, t.price]));
+      try {
+        const tickerResponse = await publicClient.prices();
+        const ticker: { symbol: string; price: string; }[] = tickerResponse;
+        const tickerData = ticker
+          .filter((t) => symbols.includes(t.symbol))
+          .map((t) => ({
+            symbol: t.symbol,
+            price: parseFloat(t.price),
+          }));
+        priceMap = Object.fromEntries(tickerData.map((t) => [t.symbol, t.price]));
+      } catch (err) {
+        console.warn('Failed to fetch prices:', err);
+      }
     }
 
-    const positions = events.reduce<Record<string, { quantity: number; cost: number }>>(
-      (acc, e) => {
+    interface PositionData {
+      quantity: number;
+      cost: number;
+    }
+
+    const positions = events.reduce<Record<string, PositionData>>(
+      (acc: Record<string, PositionData>, e: OrderEvent) => {
         const sym = e.symbol;
-        if (!acc[sym]) acc[sym] = { quantity: 0, cost: 0 };
+        if (!acc[sym]) {
+          acc[sym] = { quantity: 0, cost: 0 };
+        }
 
         const qtyChange = e.side === 'BUY' ? e.quantity : -e.quantity;
-        acc[sym].quantity += qtyChange;
-        acc[sym].cost += qtyChange * (e.price || 0);
+        acc[sym]!.quantity += qtyChange;
+        acc[sym]!.cost += qtyChange * (e.price || 0);
 
         return acc;
       },
       {}
     );
 
-    const positionArray = Object.entries(positions)
+    const positionArray: Position[] = Object.entries(positions)
       .filter(([_, data]) => Math.abs(data.quantity) > 0.00000001)
       .map(([symbol, data]) => {
         const markPrice = priceMap[symbol] || 0;
