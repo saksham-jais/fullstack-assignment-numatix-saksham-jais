@@ -31,8 +31,22 @@ redisSubscriber.on('connect', () => console.log('Redis connected'));
 redisSubscriber.on('reconnecting', () => console.log('Redis reconnecting...'));
 
 const server = http.createServer((req, res) => {
+  res.setHeader('Content-Type', 'application/json');
+
+  if (req.url === '/' && req.method === 'GET') {
+    res.writeHead(200);
+    res.end(JSON.stringify({ message: 'Event Service is running' }));
+    return;
+  }
+
+  if (req.url === '/health' && req.method === 'GET') {
+    res.writeHead(200);
+    res.end(JSON.stringify({ status: 'healthy', timestamp: new Date().toISOString() }));
+    return;
+  }
+
   res.writeHead(404);
-  res.end();
+  res.end(JSON.stringify({ error: 'Not Found' }));
 });
 
 const wss = new WebSocketServer({ server, path: '/prices' });
