@@ -8,7 +8,7 @@
   "routes": [
     {
       "src": "/(.*)",
-      "dest": "/apps/event-service/src/index.js"
+      "dest": "/src/index.js"
     }
   ]
 }
