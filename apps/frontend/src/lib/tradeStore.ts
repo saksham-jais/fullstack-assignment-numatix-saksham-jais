@@ -2,7 +2,16 @@
 import { create } from 'zustand';
 import axios from 'axios';
 import { getToken } from './auth';
-import { Position } from '@shared/types';
+
+interface Position {
+  symbol: string;
+  entryPrice: number;
+  size: number;
+  markPrice?: number;
+  unrealizedPnL?: number;
+  unrealizedPnLPercent?: number;
+  // Add other fields as needed
+}
 
 interface TradeStore {
   symbol: string;
