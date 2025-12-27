@@ -1,7 +1,6 @@
 import express from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import Redis from 'ioredis';
-import Binance from 'binance-api-node';
 import type { OrderCommand, OrderEvent, Position } from '@shared/types';
 import { authenticate } from '../middleware/auth';
 import { prisma } from '../auth';
@@ -9,13 +8,19 @@ import { prisma } from '../auth';
 const router = express.Router();
 const redis = new Redis(process.env.REDIS_URL!);
 
-interface BinancePublicClient {
-  prices(): Promise<{ symbol: string; price: string; }[]>;
+async function fetchBinancePrices(): Promise<Record<string, number>> {
+  try {
+    const response = await fetch('https://testnet.binance.vision/api/v3/ticker/price');
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    const data: { symbol: string; price: string }[] = await response.json();
+    return Object.fromEntries(data.map(({ symbol, price }) => [symbol, parseFloat(price)]));
+  } catch (error) {
+    console.error('Failed to fetch Binance prices:', error);
+    return {};
+  }
 }
-
-const publicClient = Binance({
-  httpBase: 'https://testnet.binance.vision',
-}) as unknown as BinancePublicClient;
 
 router.post('/orders', authenticate, async (req: any, res: any) => {
   const { symbol, side, type, quantity, price } = req.body;
@@ -98,19 +103,10 @@ router.get('/positions', authenticate, async (req: any, res: any) => {
     let priceMap: Record<string, number> = {};
 
     if (symbols.length > 0) {
-      try {
-        const tickerResponse = await publicClient.prices();
-        const ticker: { symbol: string; price: string; }[] = tickerResponse;
-        const tickerData = ticker
-          .filter((t) => symbols.includes(t.symbol))
-          .map((t) => ({
-            symbol: t.symbol,
-            price: parseFloat(t.price),
-          }));
-        priceMap = Object.fromEntries(tickerData.map((t) => [t.symbol, t.price]));
-      } catch (err) {
-        console.warn('Failed to fetch prices:', err);
-      }
+      const allPrices = await fetchBinancePrices();
+      priceMap = Object.fromEntries(
+        Object.entries(allPrices).filter(([symbol]) => symbols.includes(symbol))
+      );
     }
 
     interface PositionData {
