@@ -3,7 +3,7 @@ import axios from 'axios';
 
 // Create axios instance
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:3001/api',
+  baseURL: process.env.NEXT_PUBLIC_API_BASE || 'https://fullstack-assignment-numatix-saksha-self.vercel.app/api',
   timeout: 10000, // 10s timeout
   headers: {
     'Content-Type': 'application/json',

@@ -8,6 +8,14 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+app.get('/', (req, res) => {
+  res.json({ message: 'Numatix API Gateway' });
+});
+
+app.get('/health', (req, res) => {
+  res.json({ status: 'healthy' });
+});
+
 app.post('/api/auth/register', register);
 app.post('/api/auth/login', login);
 
