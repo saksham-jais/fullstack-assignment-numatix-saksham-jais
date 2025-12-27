@@ -1,15 +1,74 @@
 'use client';
 
 import { useEffect, useCallback, useState } from 'react';
-import { Tab } from '@headlessui/react';
-import clsx from 'clsx';
-import { PencilIcon, ArrowPathIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import { useTradeStore } from '@/lib/tradeStore';
 
 type TabType = 'Positions' | 'Orders' | 'Trades';
 
+function PencilIcon(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      {...props}
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path
+        d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function ArrowPathIcon(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      {...props}
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path
+        d="M13 10V3L4 14h7v7l9-11h-7z"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function ExclamationTriangleIcon(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      {...props}
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path
+        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function classNames(...classes: (string | undefined | null | false)[]) {
+  return classes.filter(Boolean).join(' ');
+}
+
 export default function TradingPanel() {
   const { positions, orders, fetchPositions, fetchOrders } = useTradeStore();
+  const [activeTab, setActiveTab] = useState<TabType>('Positions');
   const [loading, setLoading] = useState<Record<TabType, boolean>>({
     Positions: false,
     Orders: false,
@@ -148,7 +207,7 @@ export default function TradingPanel() {
                   >
                     <td className="py-4">
                       <div
-                        className={clsx(
+                        className={classNames(
                           'w-9 h-9 rounded-full flex items-center justify-center text-white font-bold text-lg',
                           isLong ? 'bg-green-500' : 'bg-red-500'
                         )}
@@ -166,12 +225,12 @@ export default function TradingPanel() {
                       ${pos.entryPrice.toFixed(2)}
                     </td>
                     <td className="py-4 text-right text-gray-700 dark:text-gray-300">
-                      ${pos.markPrice.toFixed(2)}
+                      ${(pos.markPrice ?? 0).toFixed(2)}
                     </td>
-                    <td className={clsx('py-4 text-right font-medium', unrealized >= 0 ? 'text-green-600' : 'text-red-600')}>
+                    <td className={classNames('py-4 text-right font-medium', unrealized >= 0 ? 'text-green-600' : 'text-red-600')}>
                       —
                     </td>
-                    <td className={clsx('py-4 text-right font-medium', unrealized >= 0 ? 'text-green-600' : 'text-red-600')}>
+                    <td className={classNames('py-4 text-right font-medium', unrealized >= 0 ? 'text-green-600' : 'text-red-600')}>
                       {unrealized >= 0 ? '+' : ''}{unrealized.toFixed(2)} (
                       {unrealizedPct >= 0 ? '+' : ''}{unrealizedPct.toFixed(2)}%)
                     </td>
@@ -211,7 +270,7 @@ export default function TradingPanel() {
                     {order.timestamp ? new Date(order.timestamp).toLocaleString() : '-'}
                   </td>
                   <td className="py-4">{order.symbol}</td>
-                  <td className={clsx('py-4 font-medium', order.side === 'BUY' ? 'text-green-600' : 'text-red-600')}>
+                  <td className={classNames('py-4 font-medium', order.side === 'BUY' ? 'text-green-600' : 'text-red-600')}>
                     {order.side}
                   </td>
                   <td className="py-4">{order.type}</td>
@@ -221,7 +280,7 @@ export default function TradingPanel() {
                   </td>
                   <td className="py-4">
                     <span
-                      className={clsx(
+                      className={classNames(
                         'px-3 py-1 rounded-full text-xs font-medium',
                         order.status === 'FILLED'
                           ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
@@ -262,7 +321,7 @@ export default function TradingPanel() {
                     {trade.timestamp ? new Date(trade.timestamp).toLocaleString() : '-'}
                   </td>
                   <td className="py-4">{trade.symbol}</td>
-                  <td className={clsx('py-4 font-medium', trade.side === 'BUY' ? 'text-green-600' : 'text-red-600')}>
+                  <td className={classNames('py-4 font-medium', trade.side === 'BUY' ? 'text-green-600' : 'text-red-600')}>
                     {trade.side}
                   </td>
                   <td className="py-4 text-right">{trade.quantity.toFixed(6)}</td>
@@ -294,7 +353,7 @@ export default function TradingPanel() {
             title="Refresh Positions"
             disabled={loading.Positions}
           >
-            <ArrowPathIcon className={clsx("w-5 h-5", loading.Positions && "animate-spin")} />
+            <ArrowPathIcon className={classNames("w-5 h-5", loading.Positions && "animate-spin")} />
           </button>
           <button
             onClick={() => handleRefresh('Orders')}
@@ -302,37 +361,31 @@ export default function TradingPanel() {
             title="Refresh Orders"
             disabled={loading.Orders}
           >
-            <ArrowPathIcon className={clsx("w-5 h-5", loading.Orders && "animate-spin")} />
+            <ArrowPathIcon className={classNames("w-5 h-5", loading.Orders && "animate-spin")} />
           </button>
         </div>
       </div>
-      <Tab.Group>
-        <Tab.List className="flex border-b border-gray-100 dark:border-gray-700">
+      <div className="border-b border-gray-100 dark:border-gray-700">
+        <nav className="-mb-px flex space-x-8">
           {(['Positions', 'Orders', 'Trades'] as const).map((tab) => (
-            <Tab
+            <button
               key={tab}
-              className={({ selected }) =>
-                clsx(
-                  'flex-1 py-4 text-sm font-medium transition-colors',
-                  selected
-                    ? 'text-gray-900 dark:text-white border-b-2 border-purple-600'
-                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
-                )
-              }
+              onClick={() => setActiveTab(tab)}
+              className={classNames(
+                'flex-1 py-4 px-1 border-b-2 font-medium text-sm transition-colors',
+                activeTab === tab
+                  ? 'border-purple-600 text-gray-900 dark:text-white'
+                  : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:border-gray-300 dark:hover:border-gray-600'
+              )}
             >
               {tab}
-            </Tab>
+            </button>
           ))}
-        </Tab.List>
-
-        <Tab.Panels className="p-6">
-          {(['Positions', 'Orders', 'Trades'] as const).map((tab) => (
-            <Tab.Panel key={tab}>
-              {renderTable(tab)}
-            </Tab.Panel>
-          ))}
-        </Tab.Panels>
-      </Tab.Group>
+        </nav>
+      </div>
+      <div className="p-6">
+        {renderTable(activeTab)}
+      </div>
     </div>
   );
 }
