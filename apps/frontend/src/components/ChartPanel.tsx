@@ -23,10 +23,11 @@ export default function ChartPanel() {
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const activeStreamRef = useRef<string>('');
   const resizeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isInitializingRef = useRef(false);  // Prevent double initialization
   const [loading, setLoading] = useState(true);
   const [wsStatus, setWsStatus] = useState<'connecting' | 'connected' | 'disconnected'>('disconnected');
   const [historicalError, setHistoricalError] = useState<string | null>(null);
-  const [chartReady, setChartReady] = useState(false);  // Track if chart is fully initialized
+  const [chartReady, setChartReady] = useState(false);
   const { symbol, timeframe, setTimeframe, setCurrentPrice, currentPrice, priceChange24h } = useTradeStore();
   const { theme } = useThemeStore();
   const isDark = theme === 'dark';
@@ -120,7 +121,7 @@ export default function ChartPanel() {
       wsRef.current = null;
       
       if (activeStreamRef.current === stream && event.code !== 1000) {
-        const delay = Math.min(1000 * Math.pow(2, 1), 30000);  // Exponential backoff, cap 30s
+        const delay = Math.min(1000 * Math.pow(2, 1), 30000);
         setWsStatus('connecting');
         reconnectTimeoutRef.current = setTimeout(() => {
           connectLiveStream();
@@ -164,7 +165,7 @@ export default function ChartPanel() {
             return null;
           }
           return { time, open, high, low, close };
-                })
+        })
         .filter((candle: CandleData | null): candle is CandleData => candle !== null);
       
       console.log(`Loaded ${formatted.length} candles for ${symbol}`);
@@ -186,23 +187,35 @@ export default function ChartPanel() {
   // Initialize chart
   useEffect(() => {
     const container = containerRef.current;
-    if (!container) return;
+    if (!container || isInitializingRef.current) return;
+
+    // Set flag to prevent double initialization
+    isInitializingRef.current = true;
+
+    // Clear container completely to remove any orphaned charts
+    while (container.firstChild) {
+      container.removeChild(container.firstChild);
+    }
 
     // Cleanup previous chart
     if (chartRef.current) {
-      chartRef.current.remove();
+      try {
+        chartRef.current.remove();
+      } catch (e) {
+        console.warn('Error removing previous chart:', e);
+      }
       chartRef.current = null;
       seriesRef.current = null;
     }
 
     let chart: IChartApi | null = null;
     let series: ISeriesApi<'Candlestick'> | null = null;
+    let mounted = true;
 
     const resizeObserver = new ResizeObserver(() => {
-      // Debounce resize
       if (resizeTimeoutRef.current) clearTimeout(resizeTimeoutRef.current);
       resizeTimeoutRef.current = setTimeout(() => {
-        if (chart && container) {
+        if (chart && container && mounted) {
           const width = container.clientWidth;
           const height = container.clientHeight;
           if (width > 0 && height > 0) {
@@ -214,7 +227,7 @@ export default function ChartPanel() {
     resizeObserver.observe(container);
 
     async function initChart() {
-      if (!container) return;
+      if (!container || !mounted) return;
       
       let width = container.clientWidth;
       let height = container.clientHeight;
@@ -227,6 +240,9 @@ export default function ChartPanel() {
       
       try {
         const { createChart } = await import('lightweight-charts');
+        
+        if (!mounted) return;
+        
         chart = createChart(container, {
           width,
           height,
@@ -259,44 +275,70 @@ export default function ChartPanel() {
           priceLineColor: isDark ? '#10b981' : '#ef4444',
         });
 
+        if (!mounted) {
+          chart.remove();
+          return;
+        }
+
         chartRef.current = chart;
         seriesRef.current = series;
         
         await loadHistorical();
         
-        if (chart && chart.timeScale) {
+        if (chart && chart.timeScale && mounted) {
           chart.timeScale().fitContent();
         }
 
-        // Force resize after init
         setTimeout(() => {
-          if (chart && container) {
+          if (chart && container && mounted) {
             const currentWidth = container.clientWidth;
             const currentHeight = container.clientHeight;
             if (currentWidth > 0 && currentHeight > 0) {
               chart.resize(currentWidth, currentHeight);
             }
           }
-          setChartReady(true);
+          if (mounted) {
+            setChartReady(true);
+            isInitializingRef.current = false;
+          }
         }, 100);
       } catch (err) {
         console.error('Failed to initialize chart:', err);
         setHistoricalError('Chart initialization failed');
-        setLoading(false);  // Ensure loading is cleared on init failure to show error overlay
+        setLoading(false);
+        isInitializingRef.current = false;
       }
     }
 
     initChart();
 
     return () => {
+      mounted = false;
       resizeObserver.disconnect();
-      if (chartRef.current) {
-        chartRef.current.remove();
+      if (chart) {
+        try {
+          chart.remove();
+        } catch (e) {
+          console.warn('Error removing chart on cleanup:', e);
+        }
       }
+      if (chartRef.current) {
+        try {
+          chartRef.current.remove();
+        } catch (e) {
+          console.warn('Error removing chartRef on cleanup:', e);
+        }
+      }
+      if (container) {
+        while (container.firstChild) {
+          container.removeChild(container.firstChild);
+        }
+      }
+      isInitializingRef.current = false;
     };
   }, [symbol, timeframe, isDark, loadHistorical]);
 
-// Connect to live stream when symbol/timeframe changes
+  // Connect to live stream when symbol/timeframe changes
   useEffect(() => {
     connectLiveStream();
     return closeWs;
@@ -378,7 +420,7 @@ export default function ChartPanel() {
           </div>
         </div>
       </div>
-<div className="flex-1 relative bg-gray-50 dark:bg-gray-900 min-h-[400px]">
+      <div className="flex-1 relative bg-gray-50 dark:bg-gray-900 min-h-[400px]">
         <div ref={containerRef} className="absolute inset-0 w-full h-full" />
         {loading && !chartReady && (
           <div className="absolute inset-0 flex items-center justify-center bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm z-10">
